@@ -1,0 +1,6 @@
+# ignore everything under docker/
+docker/**
+# ...except this script:
+!docker/localEntrypoint.sh
+tests/
+launch.json

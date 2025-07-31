@@ -5,11 +5,6 @@ class VCSPInterface(ABC):
     """Abstract base class for version control systems."""
 
     @abstractmethod
-    def get_repository(self, repo_name: str):
-        """Fetch a repository by name."""
-        pass
-
-    @abstractmethod
     def get_pull_request(self, repo_name: str, pr_number: int):
         """Fetch a pull request by number."""
         pass
@@ -49,9 +44,13 @@ class VCSPInterface(ABC):
         pass
 
 class PRFile:
-    def __init__(self, filename, patch):
+    def __init__(self, filename, patch, lines=None):
         self.filename = filename
         self.patch = patch
+        self.lines = lines or set()
+        
+    def __repr__(self):
+        return f"<PRFile {self.filename} lines={len(self.lines)}>"
 
 class PR:
     def __init__(self, title, body, head_sha, state):

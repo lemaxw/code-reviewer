@@ -11,12 +11,6 @@ class GithubVCSP(VCSPInterface):
 
         self.client = Github(token)
 
-    def get_repository(self, repo_name: str):
-        try:
-            return self.client.get_repo(repo_name)
-        except GithubException as e:
-            raise Exception(f"Failed to get GitHub repository {repo_name}: {str(e)}")
-
     def get_pull_request(self, repo_name: str, pr_number: int):
         try:
             github_pr = self.client.get_repo(repo_name).get_pull(pr_number)
@@ -55,7 +49,11 @@ class GithubVCSP(VCSPInterface):
             if not prs.totalCount:
                 raise Exception(f"No pull request found for commit {commit} in {repo_name}")
             pr = prs[0]
-            pr.create_review_comment(body=comment, commit=commit_obj, path=file_path, position=line, side=side)
+            print(f"Posting comment on {file_path} at position {line} in commit {commit}")
+            if file_path != "":                
+                pr.create_review_comment(comment, commit_obj, file_path, line)
+            else:
+                pr.create_issue_comment(comment, commit_obj)
             return True
         except GithubException as e:
             raise Exception(f"Failed to create GitHub review comment: {str(e)}")

@@ -1,39 +1,46 @@
-# prompts.py
-
-def get_prompt(mode, deep=False):
+def get_prompt(deep: bool = False) -> str:
     """
-    Returns the prompt for the given mode and deep flag.
+    Returns the prompt for the given mode and deep flag, instructing LLM to return JSON output.
 
     Args:
-        mode (str): The mode ('general', 'issues', 'comments').
-        deep (bool): Whether deep mode is enabled (verbose feedback).
+        mode: The mode ('issues', 'comments').
+        deep: Whether deep mode is enabled (verbose feedback).
 
     Returns:
-        str: The prompt to use for the LLM.
+        The prompt to use for the LLM.
     """
-    if mode == "general":
-        return (
-            "Review the provided pull request details, including the PR title, description, and code diffs. "
-            "Provide a high-level summary of the changes, explaining their purpose and overall impact. "
-            "Use the PR description to understand the intent of the changes, but focus on summarizing the diffs."
-        )
+    base_json_schema = (
+        "Return a JSON array where each element represents feedback for a file's diff. "
+        "Each element must have the following structure: {\n"        
+        " 'file'               - string: the file path or name\n"
+        " 'line':  integer (the line number of issue in the new file from 'Line in new file', or old file from 'Line in old file' for deletions)",
+        " 'comments'           - array of strings: detailed feedback items\n"
+        " 'bugCount'           - integer: total number of bugs detected in this diff\n"
+        " 'smellCount'         - integer: total number of code-smell issues found\n"
+        " 'optimizationCount'  - integer: total number of optimization suggestions\n"
+        " 'logicalErrors'      - integer: total number of logical errors\n"
+        " 'performanceIssues'  - integer: total number of performance issues\n"
+        "}\n"
+        "Rules:\n"
+        "  1. Include one object per file, even if all counts are zero and comments is empty.\n"
+        "  2. If a file has no issues, set bugCount, smellCount, optimizationCount, logicalErrors, performanceIssues to 0 and comments to [].\n"
+        "  3. If the entire diff is empty or missing, return an empty array.\n"
+        "  4. Output must be valid, parsable JSON (no trailing commas, use double-quotes for keys/strings).\n"
+    )
 
-    # Base prompt for issues and comments modes
     if deep:
         return (
-            "Review the provided code diff and identify issues, including bugs, style improvements, and suggestions for better maintainability. "
-            "Provide detailed feedback on problems directly related to the changes, such as logical errors, performance issues, or maintainability concerns. "
-            "Use the PR description to understand the intent and implications of the changes, and do not flag issues as bugs if the PR description explains the reasoning behind a change "
-            "(e.g., deliberate removal of error handling or concurrency checks), unless the change introduces a clear and unavoidable bug in the diff itself. "
-            "Avoid speculative concerns about external dependencies or unobservable runtime behaviors unless clearly indicated by the diff or supported by the PR description."
+            "Review the provided code diffs and identify issues, including bugs, smells, style improvements, and suggestions for better maintainability. "
+            "For each file, provide detailed feedback on problems directly related to the changes, such as logical errors, performance issues, or maintainability concerns. "
+            "Use the PR description to understand the intent and do not flag issues if the PR description explains the reasoning behind a change, unless the change introduces a clear bug. "
+            f"{base_json_schema} "
+            "For each file, include specific issues or suggestions in the 'comments' array, referencing the modified lines."
         )
     else:
         return (
-            "Review the provided code diff and identify critical bugs directly visible in the modified lines, such as syntax errors, null-pointer exceptions, or logical errors "
-            "that are explicitly caused by the changes and lead to unavoidable errors in the modified code. "
-            "Use the PR description to understand the intent and implications of the changes, and do not flag issues if the PR description explains the reasoning behind a change "
-            "(e.g., deliberate removal of error handling or concurrency checks), unless the change introduces a clear and unavoidable bug in the diff itself. "
-            "Do not make assumptions about code outside the diff, such as variable definitions, external logic, or potential runtime behaviors. "
-            "Do not provide general suggestions, style recommendations, documentation advice, or speculative concerns about issues not directly observable in the diff "
-            "(e.g., hypothetical runtime failures contradicted by the PR description)."
+            "Review the provided code diffs and identify critical bugs directly visible in the modified lines, such as syntax errors, null-pointer exceptions, or logical errors. "
+            "Use the PR description to understand the intent and do not flag issues if the PR description explains the reasoning behind a change, unless the change introduces a clear bug. "
+            "Do not provide general suggestions or speculative concerns. "
+            f"{base_json_schema} "
+            "For each file, include only critical bugs in the 'comments' array, referencing the modified lines."
         )
