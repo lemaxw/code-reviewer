@@ -18,3 +18,6 @@ docker login
 docker push "$IMAGE_NAME:$TAG"
 docker push "$IMAGE_NAME:latest"
 
+#docker build -f ./docker/Dockerfile.local --build-arg OPENAI_API_KEY=sk-xxxx -t harbor.devportal.dalet.cloud/webnews-dev/tools/code-reviewer:2.1.0 -t harbor.devportal.dalet.cloud/webnews-dev/tools/code-reviewer:latest .
+#docker push harbor.devportal.dalet.cloud/webnews-dev/tools/code-reviewer:latest 
+#docker push harbor.devportal.dalet.cloud/webnews-dev/tools/code-reviewer:2.1.0

@@ -2,6 +2,10 @@
 All notable changes to **AI Code Reviewer** will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to semantic versioning.
+## [2.1.1] - 2025-07-31
+- Added review of local git changes (current directory)
+- Also ability perform review using container (require set of variable specific to used llm, for example: OPENAI_API_KEY)
+- to execute in local working dir, for example: docker run --rm -it -v "$(pwd)":/work   -w /work  harbor.devportal.dalet.cloud/webnews-dev/tools/code-reviewer:latest
 ## [2.1.0] - 2025-06-22
 - Added Docker compilation support
 - Improved code review granularity for Bitbucket; it now processes only the latest commits. If commits conflict, it reviews the entire file (as before).

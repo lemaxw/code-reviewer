@@ -1,0 +1,28 @@
+FROM ubuntu:22.04
+
+# Allow passing the key at build time: --build-arg OPENAI_API_KEY=...
+ARG OPENAI_API_KEY
+
+# Make it available at runtime inside the container
+ENV OPENAI_API_KEY=${OPENAI_API_KEY}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy everything except docker/ into /app
+COPY . /app/
+COPY ./docker/localEntrypoint.sh /app
+RUN chmod +x /app/localEntrypoint.sh
+RUN rm -rf /app/docker
+
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+
+ENTRYPOINT ["/app/localEntrypoint.sh", "/usr/bin/python3", "/app/review.py", "never", "1", "--vcsp", "local", "--deep", "--full-context", "--llm", "chatgpt", "--mode", "issues"]
+
