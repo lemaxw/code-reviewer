@@ -58,7 +58,10 @@ def _parse_diff_per_file(diff_text):
                         line_num_new += 1
 
         if current_file:
-            files.append(PRFile(current_file, '\n'.join(current_diff), changed_lines))
+            pr = PRFile(current_file, '\n'.join(current_diff), changed_lines)
+            files.append(pr)
+            logger.debug("Parsed diff for file: %s with %d changed lines, patch: %s, lines: %s",
+                         current_file, len(changed_lines), pr.patch, pr.lines)
 
         return files
 
@@ -262,9 +265,10 @@ class BitbucketVCSP(VCSPInterface):
         )
         payload = None
         if file_path != "":
+            inline = {"path": file_path, "to": line } if line else {"path": file_path}         
             payload = {
                 "content": {"raw": comment},
-                "inline": {"path": file_path, "to": line}
+                "inline": inline
             }
         else:
             payload = {
@@ -278,8 +282,8 @@ class BitbucketVCSP(VCSPInterface):
             status = e.response.status_code if e.response else 'N/A'
             text = e.response.text if e.response else str(e)
             logger.error(
-                "Failed to post review comment to %s #%s: status %s, response: %s",
-                repo_name, self.pr_number, status, text
+                "Failed to post review comment to %s #%s: status %s, response: %s, payload: %s",
+                repo_name, self.pr_number, status, text, payload
             )
             raise
 

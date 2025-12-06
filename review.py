@@ -7,6 +7,8 @@ from gemini_llm import GeminiLLM
 from github_vcsp import GithubVCSP
 from gitlab_vcsp import GitlabVCSP
 from bitbucket_vcsp import BitbucketVCSP
+from local_vcsp import LocalVCSP
+
 from grok_llm import GrokLLM
 from models import LLMReviewResult, CodeReview
 from llm_code_reviewer import LLMCodeReviewer
@@ -20,8 +22,8 @@ logging.basicConfig(
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="AI Code Review for PRs/MRs")
-parser.add_argument("repository", help="Repository name (e.g., 'username/repo')")
-parser.add_argument("pr_number", type=int, help="Pull Request number")
+parser.add_argument("repository",default="", help="Repository name (e.g., 'username/repo')")
+parser.add_argument("pr_number", default=0, type=int, help="Pull Request number")
 parser.add_argument(
     "--mode",
     choices=["issues", "comments"],
@@ -61,7 +63,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--vcsp",
-    choices=["github", "gitlab", "bitbucket"],
+    choices=["github", "gitlab", "bitbucket", "local"],
     default="github",
     help="Version control system provider to use: 'github' (default: github)",
 )
@@ -103,6 +105,7 @@ for i in range(len(args.llm)):
         "github": GithubVCSP,
         "gitlab": GitlabVCSP,
         "bitbucket": BitbucketVCSP,
+        "local": LocalVCSP
     }
     try:
         vcsp = version_control_system_map[args.vcsp]()
