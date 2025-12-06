@@ -2,6 +2,10 @@
 All notable changes to **AI Code Reviewer** will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to semantic versioning.
+## [2.1.2] - 2025-12-06
+- Switched ChatGPT integration to the OpenAI Responses API, including updated token accounting and output parsing; default model set to `gpt-5.1-codex-max`.
+- Local VCSP now detects when the repository argument points to an existing path and uses it as the working tree, validating the `.git` directory before running git commands.
+
 ## [2.1.1] - 2025-07-31
 - Added review of local git changes (current directory)
 - Also ability perform review using container (require set of variable specific to used llm, for example: OPENAI_API_KEY)
@@ -52,4 +56,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Modes: `general` (PR summary), `issues` (list issues), `comments` (post to GitHub).
 - `--full-context` flag to include full file contents in reviews.
 - `--debug` flag to print LLM API request details.
-
