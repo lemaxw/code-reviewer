@@ -89,8 +89,7 @@ else:
 llm_map = {
     "chatgpt": ChatGPTLLM,
     "gemini": GeminiLLM,
-    "grok": GrokLLM
-    
+    "grok": GrokLLM    
 }
 
 for i in range(len(args.llm)):
