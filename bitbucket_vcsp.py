@@ -11,8 +11,10 @@ from types import SimpleNamespace
 from atlassian import Bitbucket
 from vcsp_interface import VCSPInterface, PRFile, PR, Commit
 from collections import defaultdict
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
 
 logger = logging.getLogger(__name__)
+
 
 
 def _parse_diff_per_file(diff_text):
@@ -22,7 +24,9 @@ def _parse_diff_per_file(diff_text):
         current_diff = []
         changed_lines = set()
         line_num_new = None
-
+        if not diff_text:
+            logger.warning("Received empty diff text")
+            return []
         for line in diff_text.splitlines(keepends=False):
             if line.startswith('diff --git'):
                 if current_file:
@@ -62,6 +66,12 @@ def _parse_diff_per_file(diff_text):
         logger.error("Failed to parse diff text: %s", e)
         return []
 
+def is_retryable_http_error(exception):
+    return (
+        isinstance(exception, requests.exceptions.HTTPError)
+        and exception.response is not None
+        and exception.response.status_code == 429
+    )
 
 class BitbucketVCSP(VCSPInterface):
     def __init__(self):
@@ -79,7 +89,12 @@ class BitbucketVCSP(VCSPInterface):
             raise
         self.repo_slug = None
         self.pr_number = None
-    
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=4, max=60),
+        stop=stop_after_attempt(5),
+        retry=retry_if_exception(is_retryable_http_error)
+    )
     def _get_json(self, url):
         try:
             response = requests.get(url, auth=(self.bb_user, self.bb_pass))
@@ -88,6 +103,21 @@ class BitbucketVCSP(VCSPInterface):
         except requests.RequestException as e:
             logger.error("API request failed for URL %s: %s", url, e)
             return {}
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=4, max=60),
+        stop=stop_after_attempt(5),
+        retry=retry_if_exception(is_retryable_http_error)
+    )
+    def _get_text(self, url):
+        try:
+            response = requests.get(url, auth=(self.bb_user, self.bb_pass))
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as e:
+            logger.error("API request failed for URL %s: %s", url, e)
+            return None
+
 
     def get_repository(self, repo_name: str):
         # Not needed for PR operations; could return repo metadata if desired
@@ -119,22 +149,20 @@ class BitbucketVCSP(VCSPInterface):
             url = data.get("next")
         return commits
 
+
     def get_commit_diff(self, repo_name, commit_hash):
         try:
-            url = f"https://api.bitbucket.org/2.0/repositories/{self.workspace}/{repo_name}/diff/{commit_hash}"
-            response = requests.get(url, auth=(self.bb_user, self.bb_pass))
-            response.raise_for_status()
-            return _parse_diff_per_file(response.text)
+            url = f"https://api.bitbucket.org/2.0/repositories/{self.workspace}/{repo_name}/diff/{commit_hash}"              
+            return _parse_diff_per_file(self._get_text(url))
         except Exception as e:
             logger.error("Failed to fetch or parse diff for commit %s: %s", commit_hash, e)
             return []
 
+
     def get_pr_diff(self, repo_name, pr_number):
         try:
             url = f"https://api.bitbucket.org/2.0/repositories/{self.workspace}/{repo_name}/pullrequests/{pr_number}/diff"
-            response = requests.get(url, auth=(self.bb_user, self.bb_pass))
-            response.raise_for_status()
-            return _parse_diff_per_file(response.text)
+            return _parse_diff_per_file(self._get_text(url))
         except Exception as e:
             logger.error("Failed to fetch or parse PR diff: %s", e)
             return []
@@ -216,13 +244,12 @@ class BitbucketVCSP(VCSPInterface):
             f"https://api.bitbucket.org/2.0/repositories/"
             f"{self.workspace}/{repo_name}/src/{ref}/{file_path}"
         )
-        try:
-            response = requests.get(content_url, auth=(self.bb_user, self.bb_pass))
-            response.raise_for_status()
-            text = response.text
-        except requests.exceptions.RequestException as e:
-            logger.error("Error fetching file content %s@%s:%s: %s", repo_name, ref, file_path, e)
+        
+        text =  self._get_text(content_url)
+        if text is None:
+            logger.error("Failed to fetch content for %s at ref %s", file_path, ref)
             return None
+            
         return SimpleNamespace(decoded_content=text.encode('utf-8'))
 
     def create_review_comment(self, repo_name: str, commit: str, file_path: str, line: int, comment: str, side: str):
@@ -259,13 +286,7 @@ class BitbucketVCSP(VCSPInterface):
     def get_commit(self, repo_name: str, commit_sha: str) -> Commit:
         # Fetch a single commit via REST API
         commit_url = f"https://api.bitbucket.org/2.0/repositories/{self.workspace}/{repo_name}/commit/{commit_sha}"
-        try:
-            response = requests.get(commit_url, auth=(self.bb_user, self.bb_pass))
-            response.raise_for_status()
-            data = response.json()
-        except requests.exceptions.RequestException as e:
-            logger.error("Error fetching commit %s #%s: %s", repo_name, commit_sha, e)
-            raise
+        data = self._get_json(commit_url)
         try:
             message = data.get('message')
             author = data.get('author', {}).get('user', {}).get('display_name')

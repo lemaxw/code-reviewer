@@ -2,7 +2,7 @@
 
 # Accept image name and tag as parameters with defaults
 [ -n "$1" ] && IMAGE_NAME="$1"
-TAG=${2:-2.0.1}
+[ -n "$2" ] && TAG="$2"
 
 
 # Get directory of script
