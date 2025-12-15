@@ -8,6 +8,7 @@ from gemini_llm import GeminiLLM
 from github_vcsp import GithubVCSP
 from gitlab_vcsp import GitlabVCSP
 from grok_llm import GrokLLM
+from svn_vcsp import SvnVCSP
 
 # Configure logging
 logging.basicConfig(
@@ -29,7 +30,7 @@ user_prompt = """
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="AI PR Description Generator")
 parser.add_argument("repository", help="Repository name (e.g., 'username/repo')")
-parser.add_argument("pr_number", type=int, help="Pull Request number")
+parser.add_argument("pr_number", type=int, help="Pull Request number (use the commit/revision number for svn)")
 parser.add_argument(
     "--llm",
     choices=["chatgpt", "gemini", "grok"],
@@ -49,9 +50,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--vcsp",
-    choices=["github", "gitlab", "bitbucket"],
+    choices=["github", "gitlab", "bitbucket", "svn"],
     default="github",
-    help="Version control system provider to use: 'github' (default: github)",
+    help="Version control system provider to use. 'svn' targets a single revision and prints the summary.",
 )
 
 args = parser.parse_args()
@@ -75,6 +76,7 @@ version_control_system_map = {
     "github": GithubVCSP,
     "gitlab": GitlabVCSP,
     "bitbucket": BitbucketVCSP,
+    "svn": SvnVCSP,
 }
 vcsp = version_control_system_map[args.vcsp]()
 

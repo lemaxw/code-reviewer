@@ -8,6 +8,7 @@ from github_vcsp import GithubVCSP
 from gitlab_vcsp import GitlabVCSP
 from bitbucket_vcsp import BitbucketVCSP
 from local_vcsp import LocalVCSP
+from svn_vcsp import SvnVCSP
 
 from grok_llm import GrokLLM
 from models import LLMReviewResult, CodeReview
@@ -23,7 +24,7 @@ logging.basicConfig(
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="AI Code Review for PRs/MRs")
 parser.add_argument("repository",default="", help="Repository name (e.g., 'username/repo')")
-parser.add_argument("pr_number", default=0, type=int, help="Pull Request number")
+parser.add_argument("pr_number", default=0, type=int, help="Pull Request number (use the commit/revision number for svn)")
 parser.add_argument(
     "--mode",
     choices=["issues", "comments"],
@@ -63,9 +64,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--vcsp",
-    choices=["github", "gitlab", "bitbucket", "local"],
+    choices=["github", "gitlab", "bitbucket", "local", "svn"],
     default="github",
-    help="Version control system provider to use: 'github' (default: github)",
+    help="Version control system provider to use. 'svn' reviews a single revision and only prints issues.",
 )
 
 parser.add_argument(
@@ -104,7 +105,8 @@ for i in range(len(args.llm)):
         "github": GithubVCSP,
         "gitlab": GitlabVCSP,
         "bitbucket": BitbucketVCSP,
-        "local": LocalVCSP
+        "local": LocalVCSP,
+        "svn": SvnVCSP
     }
     try:
         vcsp = version_control_system_map[args.vcsp]()
@@ -160,7 +162,11 @@ for i in range(len(args.llm)):
         print(review_summary)
                 
 
-    if args.mode == "comments" and pr.state.lower() == "open" and review_result and review_result.reviews:
+    can_post_comments = getattr(vcsp, "supports_comments", True)
+
+    if args.mode == "comments" and not can_post_comments:
+        logging.info("Comments mode requested, but this VCS does not support comments. Issues were printed to stdout.")
+    elif args.mode == "comments" and pr.state.lower() == "open" and review_result and review_result.reviews:
         try:
             head_commit = vcsp.get_commit(args.repository, pr.head_sha)
         except Exception as e:

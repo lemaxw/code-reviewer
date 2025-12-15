@@ -13,6 +13,7 @@ Welcome to **AI Code Reviewer**, a Python tool built by [AnyMaint](https://anyma
 - **PR Comments**: Automatically post issues as inline comments on open pull requests.
 - **Multi-LLM Support**: Switch between ChatGPT, Grok and Gemini with a simple flag.
 - **Deep Review Mode**: Use `--deep` for verbose reviews including non-bug feedback like data migration or documentation; default mode focuses on critical bugs only.
+- **SVN Revisions**: Review a single Subversion revision by passing its commit number; issues are printed to stdout (no inline comments).
 
 ## Installation
 1. Clone the repo:
@@ -61,6 +62,11 @@ It may be outdated, but it is a good start: [How to Use AI Code Reviewer](https:
    python review.py "owner/repo" --pr 123 --mode comments --llm gemini
 ```
 - Add `--full-context` to include whole files, or `--debug` to see LLM requests.
+- **Review an SVN Revision (no comments, issues printed)**:
+```bash
+   python review.py "https://svn.example.com/repos/project/trunk" 527 --vcsp svn
+```
+  Optional: set `SVN_USERNAME` / `SVN_PASSWORD` (and `SVN_TRUST_FAILURES` for cert errors) to avoid interactive prompts.
 
 ## Contributing
 We’re a small startup and love community help! Fork it, fix it, PR it—see [CONTRIBUTING.md](CONTRIBUTING.md) for details. Found a bug? Open an issue!
@@ -74,4 +80,3 @@ Licensed under the [BSD 3-Clause License](LICENSE) - see the [LICENSE](LICENSE) 
 ## Acknowledgments
 - Built with inspiration from Grok at xAI.
 - Powered by ChatGPT (OpenAI), Grok (xAI) and Gemini (Google).
-
