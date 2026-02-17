@@ -1,0 +1,6 @@
+version: 1
+review:
+  global_avoid:
+    - "Do not suggest style-only improvements unless --deep is used."
+  ignore_paths:
+    - "tests/data/**"

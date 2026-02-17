@@ -14,6 +14,7 @@ Welcome to **AI Code Reviewer**, a Python tool built by [AnyMaint](https://anyma
 - **Multi-LLM Support**: Switch between ChatGPT, Grok and Gemini with a simple flag.
 - **Deep Review Mode**: Use `--deep` for verbose reviews including non-bug feedback like data migration or documentation; default mode focuses on critical bugs only.
 - **SVN Revisions**: Review a single Subversion revision by passing its commit number; issues are printed to stdout (no inline comments).
+- **Repository-Specific Rules**: Add `.ai-reviewer.yml` in the repository root to enforce custom review rules and ignore paths.
 
 ## Installation
 1. Clone the repo:
@@ -67,6 +68,31 @@ It may be outdated, but it is a good start: [How to Use AI Code Reviewer](https:
    python review.py "https://svn.example.com/repos/project/trunk" 527 --vcsp svn
 ```
   Optional: set `SVN_USERNAME` / `SVN_PASSWORD` (and `SVN_TRUST_FAILURES` for cert errors) to avoid interactive prompts.
+
+## Repository Rules (`.ai-reviewer.yml`)
+Create `.ai-reviewer.yml` at repository root to customize review behavior:
+
+```yaml
+version: 1
+review:
+  global_must:
+    - "Flag SQL string interpolation as a bug."
+  global_avoid:
+    - "Do not suggest style-only improvements unless --deep is used."
+  ignore_paths:
+    - "docs/**"
+    - "migrations/**"
+  path_rules:
+    - paths: ["backend/**/*.py"]
+      must:
+        - "Flag broad except Exception without logging or re-raise."
+```
+
+Behavior:
+- Rules file is read from the PR head version (`head_sha`) so PR updates to `.ai-reviewer.yml` are applied immediately.
+- If `.ai-reviewer.yml` is not changed in the PR, it is still read from repository at PR head ref.
+- Files matching `ignore_paths` are excluded from review input.
+- If all changed files are ignored, no LLM API call is made.
 
 ## Contributing
 We’re a small startup and love community help! Fork it, fix it, PR it—see [CONTRIBUTING.md](CONTRIBUTING.md) for details. Found a bug? Open an issue!

@@ -2,6 +2,16 @@
 All notable changes to **AI Code Reviewer** will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to semantic versioning.
+## [2.1.4] - 2026-02-17
+- Added repository-specific review rules via `.ai-reviewer.yml` (global and path-based `must/avoid` rules), injected into the LLM prompt.
+- Added `ignore_paths` support to skip selected files from review input.
+- Added early short-circuit behavior to avoid LLM API calls when:
+  - there are no changed files to review, or
+  - all changed files are filtered by `ignore_paths`.
+- Added YAML parsing support for rules configuration (`PyYAML` dependency).
+- Normalized file paths and glob patterns (`./...`, Windows `\` separators) for reliable ignore/path-rule matching.
+- Improved Bitbucket behavior for missing optional `.ai-reviewer.yml`: reduced 404 noise and clearer logging.
+
 ## [2.1.2] - 2025-12-06
 - Switched ChatGPT integration to the OpenAI Responses API, including updated token accounting and output parsing; default model set to `gpt-5.1-codex-max`.
 - Local VCSP now detects when the repository argument points to an existing path and uses it as the working tree, validating the `.git` directory before running git commands.

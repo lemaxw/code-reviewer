@@ -166,4 +166,113 @@ def test_review_pr_new_file():
 @@ -101 +101 @@ export async function main() {
 @@ -132 +132 @@ export async function main() {
 """
-    
+
+
+def test_review_pr_all_files_ignored_skips_llm(mock_vcsp, mock_llm, sample_pr):
+    diff_content = """--- a/docs/readme.md
++++ b/docs/readme.md
+@@ -1,2 +1,2 @@
+-Old text
++New text
+"""
+    mock_vcsp.get_files_in_pr.return_value = [PRFile(filename="docs/readme.md", patch=diff_content)]
+    mock_vcsp.get_file_content.return_value = """review:
+  ignore_paths:
+    - "docs/**"
+"""
+    reviewer = LLMCodeReviewer(llm=mock_llm, vcsp=mock_vcsp, full_context=False, deep=False)
+
+    result = reviewer.review_pr(sample_pr, "user/repo", 1)
+
+    assert result is None
+    mock_llm.answer.assert_not_called()
+
+
+def test_review_pr_loads_rules_file_from_pr_head_sha(mock_vcsp, mock_llm, sample_pr, mocker):
+    diff_content = """--- a/main.py
++++ b/main.py
+@@ -1,1 +1,1 @@
+-print("old")
++print("new")
+"""
+    mock_vcsp.get_files_in_pr.return_value = [PRFile(filename="main.py", patch=diff_content)]
+
+    def get_file_content_side_effect(repo_name, file_path, ref=None):
+        if file_path == ".ai-reviewer.yml":
+            assert ref == "abc123"
+            return """review:
+  global_must:
+    - "Flag print usage in backend files."
+"""
+        if file_path == "main.py":
+            return "print('new')"
+        return ""
+
+    mock_vcsp.get_file_content.side_effect = get_file_content_side_effect
+    mock_llm.answer.return_value = ModelResult(
+        response='[{"file":"main.py","line":1,"comments":[]}]',
+        total_tokens=0,
+        prompt_tokens=0,
+        completion_tokens=0
+    )
+    mocker.patch("llm_code_reviewer.JsonResponseCleaner.strip",
+                 return_value='[{"file":"main.py","line":1,"comments":[]}]')
+
+    reviewer = LLMCodeReviewer(llm=mock_llm, vcsp=mock_vcsp, full_context=True, deep=False)
+    result = reviewer.review_pr(sample_pr, "user/repo", 1)
+
+    assert isinstance(result, LLMReviewResult)
+    mock_vcsp.get_file_content.assert_any_call("user/repo", ".ai-reviewer.yml", ref="abc123")
+    mock_llm.answer.assert_called_once()
+
+
+def test_review_pr_hidden_file_ignore_pattern(mock_vcsp, mock_llm, sample_pr):
+    diff_content = """--- a/.env
++++ b/.env
+@@ -1,1 +1,1 @@
+-SECRET=old
++SECRET=new
+"""
+    mock_vcsp.get_files_in_pr.return_value = [PRFile(filename=".env", patch=diff_content)]
+    mock_vcsp.get_file_content.return_value = """review:
+  ignore_paths:
+    - ".env"
+"""
+    reviewer = LLMCodeReviewer(llm=mock_llm, vcsp=mock_vcsp)
+
+    result = reviewer.review_pr(sample_pr, "user/repo", 1)
+
+    assert result is None
+    mock_llm.answer.assert_not_called()
+
+
+@pytest.mark.parametrize("pattern", ["./docs/**", "docs\\**"])
+def test_review_pr_normalizes_ignore_glob_patterns(mock_vcsp, mock_llm, sample_pr, pattern):
+    diff_content = """--- a/docs/readme.md
++++ b/docs/readme.md
+@@ -1,1 +1,1 @@
+-old
++new
+"""
+    mock_vcsp.get_files_in_pr.return_value = [PRFile(filename="docs/readme.md", patch=diff_content)]
+    mock_vcsp.get_file_content.return_value = f"""review:
+  ignore_paths:
+    - '{pattern}'
+"""
+    reviewer = LLMCodeReviewer(llm=mock_llm, vcsp=mock_vcsp)
+
+    result = reviewer.review_pr(sample_pr, "user/repo", 1)
+
+    assert result is None
+    mock_llm.answer.assert_not_called()
+
+
+def test_review_pr_no_changed_files_skips_llm(mock_vcsp, mock_llm, sample_pr):
+    mock_vcsp.get_files_in_pr.return_value = []
+    reviewer = LLMCodeReviewer(llm=mock_llm, vcsp=mock_vcsp)
+
+    result = reviewer.review_pr(sample_pr, "user/repo", 1)
+
+    assert result is None
+    mock_llm.answer.assert_not_called()
+    mock_vcsp.get_file_content.assert_not_called()

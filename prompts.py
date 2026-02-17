@@ -1,4 +1,4 @@
-def get_prompt(deep: bool = False) -> str:
+def get_prompt(deep: bool = False, repository_requirements: str = "") -> str:
     """
     Returns the prompt for the given mode and deep flag, instructing LLM to return JSON output.
 
@@ -28,11 +28,20 @@ def get_prompt(deep: bool = False) -> str:
         "  4. Output must be valid, parsable JSON (no trailing commas, use double-quotes for keys/strings).\n"
     )
 
+    requirements_block = ""
+    if repository_requirements:
+        requirements_block = (
+            "Repository-specific review requirements:\n"
+            f"{repository_requirements}\n"
+            "Treat these as mandatory constraints for this repository.\n"
+        )
+
     if deep:
         return (
             "Review the provided code diffs and identify issues, including bugs, smells, style improvements, and suggestions for better maintainability. "
             "For each file, provide detailed feedback on problems directly related to the changes, such as logical errors, performance issues, or maintainability concerns. "
             "Use the PR description to understand the intent and do not flag issues if the PR description explains the reasoning behind a change, unless the change introduces a clear bug. "
+            f"{requirements_block}"
             f"{base_json_schema} "
             "For each file, include specific issues or suggestions in the 'comments' array, referencing the modified lines."
         )
@@ -41,6 +50,7 @@ def get_prompt(deep: bool = False) -> str:
             "Review the provided code diffs and identify critical bugs directly visible in the modified lines, such as syntax errors, null-pointer exceptions, or logical errors. "
             "Use the PR description to understand the intent and do not flag issues if the PR description explains the reasoning behind a change, unless the change introduces a clear bug. "
             "Do not provide general suggestions or speculative concerns. "
+            f"{requirements_block}"
             f"{base_json_schema} "
             "For each file, include only critical bugs in the 'comments' array, referencing the modified lines."
         )

@@ -112,12 +112,20 @@ class BitbucketVCSP(VCSPInterface):
         stop=stop_after_attempt(5),
         retry=retry_if_exception(is_retryable_http_error)
     )
-    def _get_text(self, url):
+    def _get_text(self, url, suppress_404: bool = False):
         try:
             response = requests.get(url, auth=(self.bb_user, self.bb_pass))
             response.raise_for_status()
             return response.text
         except requests.RequestException as e:
+            if (
+                suppress_404
+                and isinstance(e, requests.exceptions.HTTPError)
+                and e.response is not None
+                and e.response.status_code == 404
+            ):
+                logger.debug("Optional resource not found at URL %s", url)
+                return None
             logger.error("API request failed for URL %s: %s", url, e)
             return None
 
@@ -248,9 +256,12 @@ class BitbucketVCSP(VCSPInterface):
             f"{self.workspace}/{repo_name}/src/{ref}/{file_path}"
         )
         
-        text =  self._get_text(content_url)
+        text = self._get_text(content_url, suppress_404=(file_path == ".ai-reviewer.yml"))
         if text is None:
-            logger.error("Failed to fetch content for %s at ref %s", file_path, ref)
+            if file_path == ".ai-reviewer.yml":
+                logger.info("Repository rules file %s not found at ref %s", file_path, ref)
+            else:
+                logger.error("Failed to fetch content for %s at ref %s", file_path, ref)
             return None
             
         return SimpleNamespace(decoded_content=text.encode('utf-8'))
