@@ -11,6 +11,7 @@ from local_vcsp import LocalVCSP
 from svn_vcsp import SvnVCSP
 
 from grok_llm import GrokLLM
+from claude_llm import ClaudeLLM
 from models import LLMReviewResult, CodeReview
 from llm_code_reviewer import LLMCodeReviewer
 
@@ -39,10 +40,10 @@ parser.add_argument(
 )
 parser.add_argument(
     "--llm",
-    choices=["chatgpt", "gemini", "grok"],
+    choices=["chatgpt", "gemini", "grok", "claude"],
     default="chatgpt",
     nargs="+",
-    help="LLM to use (one or more): 'chatgpt', 'gemini', 'grok' (default: chatgpt)",
+    help="LLM to use (one or more): 'chatgpt', 'gemini', 'grok', 'claude' (default: chatgpt)",
 )
 
 parser.add_argument(
@@ -90,7 +91,8 @@ else:
 llm_map = {
     "chatgpt": ChatGPTLLM,
     "gemini": GeminiLLM,
-    "grok": GrokLLM    
+    "grok": GrokLLM,
+    "claude": ClaudeLLM,
 }
 
 for i in range(len(args.llm)):
