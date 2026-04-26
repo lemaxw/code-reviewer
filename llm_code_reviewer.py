@@ -1,6 +1,6 @@
 import logging
 import fnmatch
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List
 
 from config import LOG_CHAR_LIMIT, MAX_LENGTH_DIFF, MAX_TOTAL_LENGTH
 from json_cleaner import JsonResponseCleaner
@@ -13,6 +13,13 @@ from vcsp_interface import VCSPInterface
 import yaml
 
 DEFAULT_RULES_FILE = ".ai-reviewer.yml"
+
+def _iter_diff_lines(diff_lines: Any) -> Iterable[str]:
+    if diff_lines is None:
+        return []
+    if isinstance(diff_lines, str):
+        return diff_lines.splitlines()
+    return diff_lines
 
 def remove_hunk_counts(diff_text: str) -> str:
     """
@@ -29,10 +36,10 @@ def remove_hunk_counts(diff_text: str) -> str:
 
 def is_new_file(diff_lines):
     """
-    Given the lines of a unified diff for one file,
+    Given a unified diff string or its lines for one file,
     return True if it’s a brand-new file.
     """
-    for line in diff_lines:
+    for line in _iter_diff_lines(diff_lines):
         # Git’s explicit marker
         if line.startswith('new file mode '):
             return True
@@ -43,10 +50,10 @@ def is_new_file(diff_lines):
 
 def is_deleted_file(diff_lines):
     """
-    Given the lines of a unified diff for one file,
+    Given a unified diff string or its lines for one file,
     return True if it’s a deleted file.
     """
-    for line in diff_lines:
+    for line in _iter_diff_lines(diff_lines):
         # Git’s explicit marker
         if line.startswith('deleted file mode '):
             return True
