@@ -2,6 +2,14 @@
 All notable changes to **AI Code Reviewer** will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to semantic versioning.
+## [2.1.5] - 2026-04-27
+- Fixed new/deleted file detection when diff helpers receive raw patch strings, preventing character-by-character scanning and avoiding full-context content fetches for deleted files.
+- Improved Claude-oriented review prompting to keep feedback limited to changed lines and concrete issues only.
+- Tightened LLM JSON output instructions to require one top-level JSON array and reject standalone comma-separated objects.
+- Reduced noisy review feedback by suppressing praise, speculative checks, optional strengthening, missing trailing newline comments, and minor style-only issues such as trailing whitespace.
+- Added concise-output guidance so LLM comments stay short, high-impact, and limited per file.
+- Added clearer diagnostics for malformed LLM JSON responses, including parse location and the cleaned response excerpt.
+
 ## [2.1.4] - 2026-02-17
 - Added repository-specific review rules via `.ai-reviewer.yml` (global and path-based `must/avoid` rules), injected into the LLM prompt.
 - Added `ignore_paths` support to skip selected files from review input.

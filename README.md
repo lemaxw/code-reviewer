@@ -1,18 +1,19 @@
-# AI Code Reviewer (2.1.1)
-*Automate Pull Request Reviews with ChatGPT, Grok & Gemini*
+# AI Code Reviewer (2.1.5)
+*Automate Pull Request Reviews with ChatGPT, Claude, Grok & Gemini*
 
 ![BSD 3-Clause License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)
 ![GitHub Stars](https://img.shields.io/github/stars/AnyMaint/code-reviewer?style=social)
 ![GitHub Forks](https://img.shields.io/github/forks/AnyMaint/code-reviewer?style=social)
 
-Welcome to **AI Code Reviewer**, a Python tool built by [AnyMaint](https://anymaint.com) to streamline code reviews using large language models (LLMs). Catch issues, summarize PRs, and even comment directly on GitHub—all powered by ChatGPT, Grok or Gemini. We’re open-sourcing this to share with the community and grow our startup’s footprint!
+Welcome to **AI Code Reviewer**, a Python tool built by [AnyMaint](https://anymaint.com) to streamline code reviews using large language models (LLMs). Catch issues, summarize PRs, and even comment directly on GitHub—all powered by ChatGPT, Claude, Grok or Gemini. We’re open-sourcing this to share with the community and grow our startup’s footprint!
 
 ## Features
 - **General Overview**: Get a high-level summary of what a PR does, based on its description and changes.
 - **Issue Detection**: Identify potential problems in diffs (ignores unchanged code by default).
 - **PR Comments**: Automatically post issues as inline comments on open pull requests.
-- **Multi-LLM Support**: Switch between ChatGPT, Grok and Gemini with a simple flag.
-- **Deep Review Mode**: Use `--deep` for verbose reviews including non-bug feedback like data migration or documentation; default mode focuses on critical bugs only.
+- **Multi-LLM Support**: Switch between ChatGPT, Claude, Grok and Gemini with a simple flag.
+- **Deep Review Mode**: Use `--deep` for concise, high-impact feedback beyond critical bugs; default mode focuses on critical bugs only.
+- **Claude Support**: Claude responses are constrained to changed lines, concrete issues, concise comments, and strict JSON array output.
 - **SVN Revisions**: Review a single Subversion revision by passing its commit number; issues are printed to stdout (no inline comments).
 - **Repository-Specific Rules**: Add `.ai-reviewer.yml` in the repository root to enforce custom review rules and ignore paths.
 
@@ -33,6 +34,8 @@ Welcome to **AI Code Reviewer**, a Python tool built by [AnyMaint](https://anyma
    export BITBUCKET_USERNAME="your-bitbucket-username"  # 
    export BITBUCKET_WORKSPACE="your-bitbucket-workspace"  # by default username will reused
    export OPENAI_API_KEY="your-openai-key"  # For ChatGPT
+   export ANTHROPIC_API_KEY="your-anthropic-key"  # For Claude
+   export ANTHROPIC_MODEL="claude-sonnet-4-6"  # Optional Claude model override
    export GOOGLE_API_KEY="your-google-key"  # For Gemini
    export XAI_API_KEY="your-x-key"     # For Grok
    export GITLAB_TOKEN="your-gitlab-token" # For GitLab
@@ -58,11 +61,17 @@ It may be outdated, but it is a good start: [How to Use AI Code Reviewer](https:
    python review.py "owner/repo" 123 --mode issues --llm chatgpt --deep
 ```
 
+- **List Issues Using Claude**:
+```bash
+   python review.py "owner/repo" 123 --mode issues --llm claude --deep
+```
+
 - **Post Comments to PR in GitHub with Gemini**:
 ```bash
    python review.py "owner/repo" --pr 123 --mode comments --llm gemini
 ```
 - Add `--full-context` to include whole files, or `--debug` to see LLM requests.
+- Claude, ChatGPT, Grok and Gemini can also be combined in one run, for example: `--llm claude chatgpt`.
 - **Review an SVN Revision (no comments, issues printed)**:
 ```bash
    python review.py "https://svn.example.com/repos/project/trunk" 527 --vcsp svn
@@ -105,4 +114,4 @@ Licensed under the [BSD 3-Clause License](LICENSE) - see the [LICENSE](LICENSE) 
 
 ## Acknowledgments
 - Built with inspiration from Grok at xAI.
-- Powered by ChatGPT (OpenAI), Grok (xAI) and Gemini (Google).
+- Powered by ChatGPT (OpenAI), Claude (Anthropic), Grok (xAI) and Gemini (Google).
