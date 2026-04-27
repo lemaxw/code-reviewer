@@ -1,5 +1,6 @@
 import logging
 import fnmatch
+import json
 from typing import Any, Dict, Iterable, List
 
 from config import LOG_CHAR_LIMIT, MAX_LENGTH_DIFF, MAX_TOTAL_LENGTH
@@ -13,6 +14,7 @@ from vcsp_interface import VCSPInterface
 import yaml
 
 DEFAULT_RULES_FILE = ".ai-reviewer.yml"
+JSON_PARSE_RESPONSE_LOG_LIMIT = 10000
 
 def _iter_diff_lines(diff_lines: Any) -> Iterable[str]:
     if diff_lines is None:
@@ -20,6 +22,25 @@ def _iter_diff_lines(diff_lines: Any) -> Iterable[str]:
     if isinstance(diff_lines, str):
         return diff_lines.splitlines()
     return diff_lines
+
+def _truncate_for_log(text: str, limit: int = JSON_PARSE_RESPONSE_LOG_LIMIT) -> str:
+    if len(text) <= limit:
+        return text
+    omitted = len(text) - limit
+    return f"{text[:limit]}\n... [truncated {omitted} chars]"
+
+def _format_json_error_context(json_text: str, error: json.JSONDecodeError) -> str:
+    lines = json_text.splitlines() or [json_text]
+    line = lines[error.lineno - 1] if 0 < error.lineno <= len(lines) else ""
+    start_col = max(error.colno - 80, 1)
+    end_col = min(error.colno + 80, len(line) + 1)
+    excerpt = line[start_col - 1:end_col - 1]
+    caret_offset = max(error.colno - start_col, 0)
+    return (
+        f"line {error.lineno}, column {error.colno}, char {error.pos}:\n"
+        f"{excerpt}\n"
+        f"{' ' * caret_offset}^"
+    )
 
 def remove_hunk_counts(diff_text: str) -> str:
     """
@@ -288,14 +309,29 @@ class LLMCodeReviewer:
                 retry_count = 2  # Exit retry loop if we got a valid response
                 # Parse JSON response
                 cleaned_response = self.json_cleaner.strip(llm_answer.response)
-                logging.debug(f"Cleaned Response:\n{cleaned_response[:LOG_CHAR_LIMIT]}... (truncated)")
                 if not cleaned_response:
                     logging.error("Error: No valid JSON found in LLM response")
+                    logging.error(
+                        "Raw LLM response that could not be cleaned as JSON (%d chars):\n%s",
+                        len(llm_answer.response),
+                        _truncate_for_log(llm_answer.response)
+                    )
                     return None
+                logging.debug(f"Cleaned Response:\n{cleaned_response[:LOG_CHAR_LIMIT]}... (truncated)")
                 try:
                     review_result = LLMReviewResult.from_json(cleaned_response, 
                         llm_answer.total_tokens,llm_answer.prompt_tokens, llm_answer.completion_tokens)                
                     return review_result
                 except ValueError as e:
                     logging.error(f"Error parsing LLM response: {str(e)}")
+                    if isinstance(e.__cause__, json.JSONDecodeError):
+                        logging.error(
+                            "JSON parse error near %s",
+                            _format_json_error_context(cleaned_response, e.__cause__)
+                        )
+                    logging.error(
+                        "Cleaned LLM response that failed JSON parsing (%d chars):\n%s",
+                        len(cleaned_response),
+                        _truncate_for_log(cleaned_response)
+                    )
             return None

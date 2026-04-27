@@ -145,7 +145,7 @@ class LLMReviewResult:
             return cls(reviews=reviews, total_tokens=total_tokens,
                 prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON response: {str(e)}")
+            raise ValueError(f"Invalid JSON response: {str(e)}") from e
 
     def __str__(self) -> str:
         return f"LLM Review Result with {len(self.reviews)} reviews"

@@ -11,7 +11,7 @@ class ClaudeLLM(LLMInterface):
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is required for Claude")
         self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-7")
+        self.model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
     def answer(self, system_prompt: str, user_prompt: str, content: str) -> ModelResult:
         """Generate a JSON response for the given prompts and content."""
