@@ -42,17 +42,31 @@ class CodeReview:
         comments = data.get("comments", [])
         if not isinstance(comments, list):
             raise ValueError("'comments' must be a list")
-        # Validate and default counts
-        def get_count(key: str) -> int:
-            value = data.get(key, 0)
+        # Validate and default counts. Accept snake_case aliases because
+        # some LLMs ignore the requested camelCase field names.
+        def get_count(*keys: str) -> int:
+            value = 0
+            for key in keys:
+                if key in data:
+                    value = data[key]
+                    break
             if not isinstance(value, int) or value < 0:
-                raise ValueError(f"'{key}' must be a non-negative integer")
+                raise ValueError(f"'{keys[0]}' must be a non-negative integer")
             return value
-        bug_count = get_count("bugCount")
-        smell_count = get_count("smellCount")
-        optimization_count = get_count("optimizationCount")
-        logical_errors = get_count("logicalErrors")
-        performance_issues = get_count("performanceIssues")
+        bug_count = get_count("bugCount", "bug_count")
+        smell_count = get_count("smellCount", "smell_count")
+        optimization_count = get_count("optimizationCount", "optimization_count")
+        logical_errors = get_count("logicalErrors", "logical_errors")
+        performance_issues = get_count("performanceIssues", "performance_issues")
+
+        if comments and not any([
+            bug_count,
+            smell_count,
+            optimization_count,
+            logical_errors,
+            performance_issues,
+        ]):
+            smell_count = len(comments)
 
         return cls(
             file=file,
@@ -89,28 +103,36 @@ class LLMReviewResult:
         Return a human-readable summary of overall review metrics,
         including only those with non-zero values.
         """
-        # mapping of internal keys to display labels
-        labels = {
-            'total_tokens': 'Total tokens',
-            'prompt_tokens': 'Prompt tokens',
-            'completion_tokens': 'Completion tokens',
+        issue_labels = {
             'bug_count': 'Bugs found',
             'smell_count': 'Code smells',
             'optimization_count': 'Optimizations suggested',
             'logical_errors': 'Logical errors',
             'performance_issues': 'Performance issues',
         }
+        token_labels = {
+            'total_tokens': 'Total tokens',
+            'prompt_tokens': 'Prompt tokens',
+            'completion_tokens': 'Completion tokens',
+        }
 
-        # build list of non-zero metrics
-        parts = [f"{labels[key]}: {value}"
-                 for key, value in self.totals.items()
-                 if key in labels and value > 0]
+        issue_parts = [
+            f"{issue_labels[key]}: {value}"
+            for key, value in self.totals.items()
+            if key in issue_labels and value > 0
+        ]
+        token_parts = [
+            f"{token_labels[key]}: {value}"
+            for key, value in self.totals.items()
+            if key in token_labels and value > 0
+        ]
 
-        if not parts:
-            return f"No issues detected by {model}."
+        if not issue_parts:
+            token_summary = f" {'; '.join(token_parts)}." if token_parts else ""
+            return f"No issues detected by {model}.{token_summary}"
 
         # join with semicolons for clarity
-        metrics_summary = "; ".join(parts)
+        metrics_summary = "; ".join(issue_parts + token_parts)
         return f"{model} review summary{' (deep)' if deep else ''}{' with full context' if full_context else ''}: {metrics_summary}."
                 
 

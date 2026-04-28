@@ -7,7 +7,7 @@ from config import LOG_CHAR_LIMIT, MAX_LENGTH_DIFF, MAX_TOTAL_LENGTH
 from json_cleaner import JsonResponseCleaner
 from llm_interface import LLMInterface
 from prompts import get_prompt
-from models import LLMReviewResult
+from models import CodeReview, LLMReviewResult
 import re
 
 from vcsp_interface import VCSPInterface
@@ -41,6 +41,38 @@ def _format_json_error_context(json_text: str, error: json.JSONDecodeError) -> s
         f"{excerpt}\n"
         f"{' ' * caret_offset}^"
     )
+
+def _empty_review_result_for_files(
+        file_names: List[str], total_tokens: int, prompt_tokens: int, completion_tokens: int) -> LLMReviewResult:
+    review_result = LLMReviewResult(
+        reviews=[
+            CodeReview(
+                file=file_name,
+                line=1,
+                comments=[],
+                bug_count=0,
+                smell_count=0,
+                optimization_count=0,
+                logical_errors=0,
+                performance_issues=0,
+            )
+            for file_name in file_names
+        ],
+        total_tokens=total_tokens,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+    )
+    review_result.totals.update({
+        "bug_count": 0,
+        "smell_count": 0,
+        "optimization_count": 0,
+        "logical_errors": 0,
+        "performance_issues": 0,
+        "total_tokens": total_tokens,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+    })
+    return review_result
 
 def remove_hunk_counts(diff_text: str) -> str:
     """
@@ -259,6 +291,7 @@ class LLMCodeReviewer:
                 return None
             
             all_content = [] 
+            reviewed_files = []
             all_content_length = 0
             for file in reviewable_pr_files:
                 if file.patch and len(file.patch) <= MAX_LENGTH_DIFF:
@@ -274,6 +307,7 @@ class LLMCodeReviewer:
                     else:
                         file_chunk = f"File: {file.filename}\nDiff:\n{file.patch}"
                     all_content.append(file_chunk)
+                    reviewed_files.append(file.filename)
                     all_content_length += len(file_chunk)
                     if all_content_length > MAX_TOTAL_LENGTH:
                         logging.warning(f"Content length exceeded {MAX_LENGTH_DIFF} characters. Truncating.")
@@ -320,7 +354,14 @@ class LLMCodeReviewer:
                 logging.debug(f"Cleaned Response:\n{cleaned_response[:LOG_CHAR_LIMIT]}... (truncated)")
                 try:
                     review_result = LLMReviewResult.from_json(cleaned_response, 
-                        llm_answer.total_tokens,llm_answer.prompt_tokens, llm_answer.completion_tokens)                
+                        llm_answer.total_tokens,llm_answer.prompt_tokens, llm_answer.completion_tokens)
+                    if not review_result.reviews and reviewed_files:
+                        review_result = _empty_review_result_for_files(
+                            reviewed_files,
+                            llm_answer.total_tokens,
+                            llm_answer.prompt_tokens,
+                            llm_answer.completion_tokens,
+                        )
                     return review_result
                 except ValueError as e:
                     logging.error(f"Error parsing LLM response: {str(e)}")

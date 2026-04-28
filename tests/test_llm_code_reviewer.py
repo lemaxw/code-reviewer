@@ -286,6 +286,55 @@ def test_review_pr_loads_rules_file_from_pr_head_sha(mock_vcsp, mock_llm, sample
     mock_llm.answer.assert_called_once()
 
 
+def test_review_pr_normalizes_empty_llm_response_to_zero_count_reviews(
+        mock_vcsp, mock_llm, sample_pr, mocker):
+    main_diff = """--- a/main.py
++++ b/main.py
+@@ -1,1 +1,1 @@
+-print("old")
++print("new")
+"""
+    util_diff = """--- a/util.py
++++ b/util.py
+@@ -1,1 +1,1 @@
+-value = 1
++value = 2
+"""
+    mock_vcsp.get_files_in_pr.return_value = [
+        PRFile(filename="main.py", patch=main_diff),
+        PRFile(filename="util.py", patch=util_diff),
+    ]
+    mock_vcsp.get_file_content.side_effect = FileNotFoundError
+    mock_llm.answer.return_value = ModelResult(
+        response='[]',
+        total_tokens=10,
+        prompt_tokens=7,
+        completion_tokens=3
+    )
+    mocker.patch("llm_code_reviewer.JsonResponseCleaner.strip", return_value='[]')
+    reviewer = LLMCodeReviewer(llm=mock_llm, vcsp=mock_vcsp)
+
+    result = reviewer.review_pr(sample_pr, "user/repo", 1)
+
+    assert isinstance(result, LLMReviewResult)
+    assert [review.file for review in result.reviews] == ["main.py", "util.py"]
+    assert all(review.line == 1 for review in result.reviews)
+    assert all(review.comments == [] for review in result.reviews)
+    assert all(review.bug_count == 0 for review in result.reviews)
+    assert all(review.smell_count == 0 for review in result.reviews)
+    assert all(review.optimization_count == 0 for review in result.reviews)
+    assert all(review.logical_errors == 0 for review in result.reviews)
+    assert all(review.performance_issues == 0 for review in result.reviews)
+    assert result.totals["total_tokens"] == 10
+    assert result.totals["prompt_tokens"] == 7
+    assert result.totals["completion_tokens"] == 3
+    assert result.totals["bug_count"] == 0
+    assert result.totals["smell_count"] == 0
+    assert result.totals["optimization_count"] == 0
+    assert result.totals["logical_errors"] == 0
+    assert result.totals["performance_issues"] == 0
+
+
 def test_review_pr_hidden_file_ignore_pattern(mock_vcsp, mock_llm, sample_pr):
     diff_content = """--- a/.env
 +++ b/.env

@@ -174,6 +174,7 @@ for i in range(len(args.llm)):
         except Exception as e:
             logging.error(f"Failed to fetch head commit: {str(e)}")
             exit(1)
+        overal_review = review_result.get_overall_review(args.deep, args.full_context, args.llm[i])
         if args.add_statistic_info:
             vcsp.create_review_comment(
                             repo_name=args.repository,
@@ -183,6 +184,7 @@ for i in range(len(args.llm)):
                             commit=head_commit.sha,
                             side="RIGHT"
                         )
+        logging.info(f"Posting comments to PR #{args.pr_number} in {args.repository}: {overal_review}")
         for review in review_result.reviews:
             if review.comments and (review.bug_count != 0 or review.smell_count != 0 or
                 review.optimization_count != 0 or review.logical_errors != 0 or
